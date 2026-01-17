@@ -24,7 +24,6 @@ canvas{border:2px solid black;background:white;width: 95vw; height: 55vh; touch-
 <div id="game-container">
   <div style="font-size:18px; margin: 5px;">
     残り時間: <span id="time">30</span>秒 
-    <span style="font-size:12px; color:#555; margin-left:10px;">ミクに触るといいことあるよ</span>
   </div>
   <canvas id="c"></canvas>
   <div id="event-layer">
@@ -37,7 +36,7 @@ canvas{border:2px solid black;background:white;width: 95vw; height: 55vh; touch-
     <button class="menu-btn" onclick="location.reload()">もう一度</button>
     <button class="menu-btn" onclick="location.href='onimenu1.html'">メニューへ</button>
   </div>
-  <button id="startBtn" style="position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); padding:20px 40px; font-size:24px; z-index:101;">スタート</button>
+  <button id="startBtn" style="position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); padding:20px 40px; font-size:24px; z-index:101; cursor:pointer;">ゲームスタート</button>
 </div>
 
 <div class="controls">
@@ -64,26 +63,26 @@ const sndSaisyu = new Audio('saisyu.m4a');
 const sndMake = new Audio('make.m4a');
 const sndZannen = new Audio('zannen.m4a');
 
-// 全音源の配列
-const effectSounds = [sndMiku, sndSaisyu, sndMake, sndZannen, sndBgm2];
-
+// 重要：スタートボタンの挙動
 document.getElementById("startBtn").onclick = function() {
-    // 1. まず全効果音を「無音」にして一瞬だけ再生（これでiPhoneの許可を得る）
-    effectSounds.forEach(s => {
-        s.volume = 0;
-        s.play().then(() => { s.pause(); s.currentTime = 0; s.volume = 1; });
-    });
-
-    // 2. メインBGM1だけを鳴らす
-    sndBgm1.volume = 1;
+    const btn = this;
+    
+    // 1. 最優先：BGM1を即座に鳴らす
     sndBgm1.play().then(() => {
+        // 再生に成功したら、他の音を無音でコッソリ解放する
+        [sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen].forEach(s => {
+            s.muted = true;
+            s.play().then(() => { s.pause(); s.currentTime = 0; s.muted = false; });
+        });
+
+        // ゲーム開始
         started = true;
-        document.getElementById("startBtn").style.display = "none";
+        btn.style.display = "none";
     }).catch(err => {
-        // 万が一BGMが失敗した場合はもう一度だけ試す
+        // 再生が弾かれた場合は、もう一度playを試みる
         sndBgm1.play();
         started = true;
-        document.getElementById("startBtn").style.display = "none";
+        btn.style.display = "none";
     });
 };
 
@@ -118,10 +117,10 @@ setInterval(()=>{
   t--;
   timeEl.textContent = t;
 
-  // 覚醒の2秒前に、saisyu.m4aを再度準備
-  if(t === 22) {
-      sndSaisyu.volume = 0;
-      sndSaisyu.play().then(() => { sndSaisyu.pause(); sndSaisyu.currentTime = 0; sndSaisyu.volume = 1; });
+  // 覚醒の準備
+  if(t === 21) {
+    sndSaisyu.muted = true;
+    sndSaisyu.play().then(() => { sndSaisyu.pause(); sndSaisyu.currentTime = 0; sndSaisyu.muted = false; });
   }
 
   if(t===20 && !kakuseiDone) triggerKakusei();
@@ -131,15 +130,13 @@ setInterval(()=>{
 function triggerKakusei(){
   isPaused = true; 
   kakuseiDone = true;
-
-  // BGM1を確実に止める
   sndBgm1.pause();
   
-  // 少し間を置いてから saisyu.m4a を再生（iPhoneの音詰まり防止）
+  // 0.2秒後にsaisyu.m4aを鳴らす
   setTimeout(() => {
     sndSaisyu.currentTime = 0;
     sndSaisyu.play();
-  }, 150);
+  }, 200);
 
   const ev = document.getElementById("event-layer");
   const evImg = document.getElementById("event-img");
