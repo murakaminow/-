@@ -56,30 +56,29 @@ let miku={x:0, y:0, r:30, active:false};
 let k={}, stop=0, kakuseiDone=false, itemTimers = [];
 
 // 音源設定
-const sndBgm1 = new Audio('murakami2.mp3'); sndBgm1.loop = true;
-const sndBgm2 = new Audio('murakami1.mp3'); sndBgm2.loop = true;
-const sndMiku = new Audio('miku.m4a');
-const sndSaisyu = new Audio('saisyu.m4a');
-const sndMake = new Audio('make.m4a');
-const sndZannen = new Audio('zannen.m4a');
+let sndBgm1 = new Audio('murakami2.mp3'); sndBgm1.loop = true;
+let sndBgm2 = new Audio('murakami1.mp3'); sndBgm2.loop = true;
+let sndMiku = new Audio('miku.m4a');
+let sndSaisyu = new Audio('saisyu.m4a');
+let sndMake = new Audio('make.m4a');
+let sndZannen = new Audio('zannen.m4a');
 
-// 重要：スタートボタンの挙動
+// スタートボタン
 document.getElementById("startBtn").onclick = function() {
     const btn = this;
     
-    // 1. 最優先：BGM1を即座に鳴らす
+    // 【重要】まず他の音は一切無視して murakami2.mp3 だけを再生
     sndBgm1.play().then(() => {
-        // 再生に成功したら、他の音を無音でコッソリ解放する
-        [sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen].forEach(s => {
-            s.muted = true;
-            s.play().then(() => { s.pause(); s.currentTime = 0; s.muted = false; });
-        });
-
-        // ゲーム開始
         started = true;
         btn.style.display = "none";
+        
+        // BGMが鳴り始めてから、他の音源を「一度も音を出さずに」iPhoneに登録
+        [sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen].forEach(s => {
+            s.load(); 
+        });
     }).catch(err => {
-        // 再生が弾かれた場合は、もう一度playを試みる
+        // iPhoneの気まぐれで失敗した時用の再試行
+        sndBgm1.load();
         sndBgm1.play();
         started = true;
         btn.style.display = "none";
@@ -117,12 +116,6 @@ setInterval(()=>{
   t--;
   timeEl.textContent = t;
 
-  // 覚醒の準備
-  if(t === 21) {
-    sndSaisyu.muted = true;
-    sndSaisyu.play().then(() => { sndSaisyu.pause(); sndSaisyu.currentTime = 0; sndSaisyu.muted = false; });
-  }
-
   if(t===20 && !kakuseiDone) triggerKakusei();
   if(t<=0) end("逃走成功！", true);
 }, 1000);
@@ -130,14 +123,12 @@ setInterval(()=>{
 function triggerKakusei(){
   isPaused = true; 
   kakuseiDone = true;
-  sndBgm1.pause();
-  
-  // 0.2秒後にsaisyu.m4aを鳴らす
-  setTimeout(() => {
-    sndSaisyu.currentTime = 0;
-    sndSaisyu.play();
-  }, 200);
 
+  // BGM1を即停止
+  sndBgm1.pause();
+  sndBgm1.currentTime = 0;
+
+  // 演出レイヤー表示
   const ev = document.getElementById("event-layer");
   const evImg = document.getElementById("event-img");
   const evName = document.querySelector("#event-name");
@@ -147,6 +138,10 @@ function triggerKakusei(){
   evImg.src = "onihard.PNG";
   evName.textContent = "村上泰心";
   evMsg.textContent = "";
+
+  // 覚醒音(saisyu.m4a)をここで強制再生
+  sndSaisyu.currentTime = 0;
+  sndSaisyu.play();
 
   setTimeout(() => {
     evImg.src = "hardfire.PNG";
@@ -161,6 +156,7 @@ function triggerKakusei(){
     isPaused = false; 
     e.s = 4.8; 
     e.r = 95;
+    // 覚醒後のBGM開始
     sndBgm2.play(); 
   }, 2800);
 }
