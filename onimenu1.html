@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>難易度選択</title>
+  <style>
+    body {
+      background: #333;
+      color: white;
+      text-align: center;
+      font-family: sans-serif;
+      margin-top: 100px;
+    }
+    button {
+      font-size: 22px;
+      padding: 12px 0;
+      margin: 10px;
+      cursor: pointer;
+      width: 220px;        /* ★ 全部同じ横幅 */
+    }
+    .back {
+      font-size: 18px;     /* 文字だけ少し小さめ */
+      background: #555;
+      color: white;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+<h1>ランを操作して鬼から逃げよう</h1>
+<p>難易度を選択してね</p>
+
+<button onclick="go('onieasy.html')">イージー</button><br>
+<button onclick="go('oninomal.html')">ノーマル</button><br>
+<button onclick="go('onihard.html')">ハード</button><br>
+
+<button class="back" onclick="go('index.html')">← 戻る</button>
+
+<script>
+function go(file) {
+  location.href = file;
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>鬼ごっこ HARD</title>
+<style>
+body{text-align:center;font-family:sans-serif;background:white;color:black;margin:0;overflow:hidden;}
+#game-container { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+canvas{border:2px solid black;background:white;width: 95vw; height: 55vh; touch-action: none;}
+#overlay {position:fixed;inset:0; background:rgba(0,0,0,.8); color:white; display:none; flex-direction:column; align-items:center; justify-content:center; z-index: 100;}
+.menu-btn {font-size:20px; padding:12px 30px; width:220px; margin:8px; cursor:pointer; border:none; border-radius:5px; background:#444; color:white;}
+#event-layer {position:absolute; inset:0; background:rgba(0,0,0,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; z-index: 10;}
+#event-img { width: 280px; height: 280px; object-fit: contain; }
+#event-name { font-size: 36px; color: white; margin-top: 20px; font-weight: bold; min-height: 40px; }
+#event-msg { font-size: 52px; color: #ff4500; margin-top: 10px; font-weight: bold; min-height: 60px; text-shadow: 0 0 15px rgba(255,69,0,0.8); }
+.controls { display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+.row { display: flex; }
+.btn { width: 55px; height: 55px; background: #eee; border: 1px solid #ccc; border-radius: 8px; margin: 2px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <div style="font-size:18px; margin: 5px;">
+    残り時間: <span id="time">30</span>秒 
+    <span style="font-size:12px; color:#555; margin-left:10px;">[ミクに触るといいことあるよ]</span>
+  </div>
+  
+  <canvas id="c"></canvas>
+  
+  <div id="event-layer">
+    <img id="event-img" src="onihard.PNG">
+    <div id="event-name"></div>
+    <div id="event-msg"></div>
+  </div>
+
+  <div id="overlay">
+    <h1 id="res"></h1>
+    <button class="menu-btn" onclick="location.reload()">もう一度</button>
+    <button class="menu-btn" onclick="location.href='onimenu1.html'">メニューへ</button>
+  </div>
+  <button id="startBtn" style="position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); padding:20px 40px; font-size:24px; z-index:101;">スタート</button>
+</div>
+
+<div class="controls">
+  <div class="row"><div class="btn" id="btnUpLeft">↖</div><div class="btn" id="btnUp">↑</div><div class="btn" id="btnUpRight">↗</div></div>
+  <div class="row"><div class="btn" id="btnLeft">←</div><div class="btn" id="btnCenter">●</div><div class="btn" id="btnRight">→</div></div>
+  <div class="row"><div class="btn" id="btnDownLeft">↙</div><div class="btn" id="btnDown">↓</div><div class="btn" id="btnDownRight">↘</div></div>
+</div>
+
+<script>
+const c=document.getElementById("c"), ctx=c.getContext("2d"), timeEl=document.getElementById("time");
+c.width = 800; c.height = 600; 
+
+let t=30, started=false, over=false, isPaused=false;
+let p={x:400, y:500, r:20, s:11}; 
+let e={x:400, y:150, r:70, s:3.0, targetS: 6.5}; 
+let miku={x:0, y:0, r:30, active:false};
+let k={}, stop=0, kakuseiDone=false;
+let itemTimers = [];
+
+const sndBgm1 = new Audio('murakami2.mp3'); sndBgm1.loop = true;
+const sndBgm2 = new Audio('murakami1.mp3'); sndBgm2.loop = true;
+const sndMiku = new Audio('miku.m4a');
+const sndSaisyu = new Audio('saisyu.m4a');
+const sndMake = new Audio('make.m4a');
+const sndZannen = new Audio('zannen.m4a');
+
+const imgNormal=new Image(); imgNormal.src='onihard.PNG';
+const imgFire=new Image(); imgFire.src='hardfire.PNG';
+const imgMiku=new Image(); imgMiku.src='miku.PNG';
+const imgIce=new Image(); imgIce.src='hardice.PNG';
+const imgRan=new Image(); imgRan.src='ran.PNG';
+
+function end(m, win){
+  over=true; started=false; isPaused=false;
+  sndBgm1.pause(); sndBgm2.pause();
+  document.getElementById("res").textContent=m;
+  document.getElementById("overlay").style.display="flex";
+  if(win) { sndMake.play(); } else { sndZannen.play(); }
+}
+
+window.onkeydown=evt=>k[evt.code]=true; window.onkeyup=evt=>k[evt.code]=false;
+function setupBtn(id,keys){
+  const b=document.getElementById(id);
+  const start=(evt)=>{evt.preventDefault(); keys.forEach(key=>k[key]=true);};
+  const end=(evt)=>{evt.preventDefault(); keys.forEach(key=>k[key]=false);};
+  b.addEventListener("touchstart",start); b.addEventListener("touchend",end);
+  b.addEventListener("mousedown",start); b.addEventListener("mouseup",end);
+}
+setupBtn("btnUp",["ArrowUp"]); setupBtn("btnDown",["ArrowDown"]); setupBtn("btnLeft",["ArrowLeft"]); setupBtn("btnRight",["ArrowRight"]);
+setupBtn("btnUpLeft",["ArrowUp","ArrowLeft"]); setupBtn("btnUpRight",["ArrowUp","ArrowRight"]);
+setupBtn("btnDownLeft",["ArrowDown","ArrowLeft"]); setupBtn("btnDownRight",["ArrowDown","ArrowRight"]);
+
+document.getElementById("startBtn").onclick = () => { started = true; document.getElementById("startBtn").style.display="none"; sndBgm1.play(); };
+
+setInterval(()=>{
+  if(!started || over || isPaused) return; 
+  t--;
+  timeEl.textContent = t;
+  if(t===20 && !kakuseiDone) triggerKakusei();
+  if(t<=0) end("逃走成功！", true);
+}, 1000);
+
+function triggerKakusei(){
+  isPaused = true; 
+  kakuseiDone = true;
+  sndBgm1.pause();
+  sndSaisyu.play(); 
+
+  const ev = document.getElementById("event-layer");
+  const evImg = document.getElementById("event-img");
+  const evName = document.querySelector("#event-layer #event-name");
+  const evMsg = document.querySelector("#event-layer #event-msg");
+  
+  ev.style.display = "flex";
+  evImg.src = "onihard.PNG";
+  evName.textContent = "村上泰心";
+  evMsg.textContent = "";
+
+  setTimeout(() => {
+    evImg.src = "hardfire.PNG";
+    evMsg.textContent = "覚醒🔥";
+  }, 1200);
+
+  itemTimers = [];
+  for(let i=0; i<3; i++){ itemTimers.push(Math.floor(Math.random() * 19) + 1); }
+
+  setTimeout(()=>{ 
+    ev.style.display = "none"; 
+    isPaused = false; 
+    e.s = 4.8; 
+    e.r = 95; 
+    sndBgm2.play(); 
+  }, 2800);
+}
+
+function loop(){
+  ctx.clearRect(0,0,c.width,c.height);
+  
+  if(started && !over && !isPaused){
+    if(kakuseiDone && e.s < e.targetS){
+      e.s += 0.004; 
+    }
+
+    let vx=0, vy=0;
+    if(k.ArrowUp)vy-=1; if(k.ArrowDown)vy+=1; if(k.ArrowLeft)vx-=1; if(k.ArrowRight)vx+=1;
+    if(vx||vy){ let d=Math.hypot(vx,vy); p.x+=vx/d*p.s; p.y+=vy/d*p.s; }
+    p.x=Math.max(p.r,Math.min(c.width-p.r,p.x)); p.y=Math.max(p.r,Math.min(c.height-p.r,p.y));
+    
+    let dx=p.x-e.x, dy=p.y-e.y, dist=Math.hypot(dx,dy);
+    if(stop>0){ stop--; } else { e.x+=dx/dist*e.s; e.y+=dy/dist*e.s; }
+    
+    if(dist < p.r+e.r) end("捕まった！", false);
+    if(miku.active && Math.hypot(p.x-miku.x, p.y-miku.y) < p.r+miku.r){ 
+        miku.active = false; stop = 180; 
+        sndMiku.play(); 
+    }
+
+    if(kakuseiDone && itemTimers.includes(t) && !miku.active){
+      itemTimers = itemTimers.filter(time => time !== t);
+      miku.x = Math.random() * 700 + 50;
+      miku.y = Math.random() * 500 + 50;
+      miku.active = true;
+    }
+  }
+
+  ctx.drawImage(imgRan, p.x-p.r, p.y-p.r, p.r*2, p.r*2);
+
+  let oniImg = (stop > 0) ? imgIce : (kakuseiDone ? imgFire : imgNormal);
+  ctx.drawImage(oniImg, e.x-e.r, e.y-e.r, e.r*2, e.r*2);
+
+  if(miku.active) ctx.drawImage(imgMiku, miku.x-miku.r, miku.y-miku.r, miku.r*2, miku.r*2);
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

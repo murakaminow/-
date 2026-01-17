@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>鬼ごっこ EASY</title>
+<style>
+body{text-align:center;font-family:sans-serif;background:white;color:black;margin:0;overflow:hidden;}
+#game-container { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+canvas{border:2px solid black;background:white;width: 95vw; height: 55vh; touch-action: none;}
+#overlay {position:fixed;inset:0; background:rgba(0,0,0,.8); color:white; display:none; flex-direction:column; align-items:center; justify-content:center; z-index: 100;}
+.menu-btn {font-size:20px; padding:12px 30px; width:220px; margin:8px; cursor:pointer; border:none; border-radius:5px; background:#444; color:white;}
+.controls { display: flex; flex-direction: column; align-items: center; margin-top: 5px; user-select: none; }
+.row { display: flex; }
+.btn { width: 55px; height: 55px; background: #eee; border: 1px solid #ccc; border-radius: 8px; margin: 2px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div style="font-size:18px; margin: 5px;">残り時間: <span id="time">15</span>秒</div>
+  <canvas id="c"></canvas>
+  <div id="overlay">
+    <h1 id="res"></h1>
+    <button class="menu-btn" onclick="location.reload()">もう一度</button>
+    <button class="menu-btn" onclick="location.href='onimenu1.html'">メニューへ</button>
+  </div>
+  <button id="startBtn" style="position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); padding:20px 40px; font-size:24px; z-index:101;">スタート</button>
+</div>
+<div class="controls">
+  <div class="row"><div class="btn" id="btnUpLeft">↖</div><div class="btn" id="btnUp">↑</div><div class="btn" id="btnUpRight">↗</div></div>
+  <div class="row"><div class="btn" id="btnLeft">←</div><div class="btn" id="btnCenter">●</div><div class="btn" id="btnRight">→</div></div>
+  <div class="row"><div class="btn" id="btnDownLeft">↙</div><div class="btn" id="btnDown">↓</div><div class="btn" id="btnDownRight">↘</div></div>
+</div>
+<script>
+const c=document.getElementById("c"), ctx=c.getContext("2d"), timeEl=document.getElementById("time");
+c.width = 800; c.height = 600; 
+let t=15, started=false, over=false;
+let p={x:400, y:500, r:20, s:9}, e={x:400, y:100, r:25, s:3.5}, k={};
+const sndBgm = new Audio('murakami2.mp3'); sndBgm.loop = true;
+const sndMake = new Audio('make.m4a'); const sndZannen = new Audio('zannen.m4a');
+const imgOni = new Image(); imgOni.src = 'onieasy.PNG';
+const imgRan = new Image(); imgRan.src = 'ran.PNG';
+function end(m, win){
+  over=true; started=false; sndBgm.pause();
+  document.getElementById("res").textContent=m;
+  document.getElementById("overlay").style.display="flex";
+  if(win) { sndMake.play(); } else { sndZannen.play(); }
+}
+window.onkeydown=evt=>k[evt.code]=true; window.onkeyup=evt=>k[evt.code]=false;
+function setupBtn(id,keys){
+  const b=document.getElementById(id);
+  const start=(evt)=>{evt.preventDefault(); keys.forEach(key=>k[key]=true);};
+  const end=(evt)=>{evt.preventDefault(); keys.forEach(key=>k[key]=false);};
+  b.addEventListener("touchstart",start); b.addEventListener("touchend",end);
+  b.addEventListener("mousedown",start); b.addEventListener("mouseup",end);
+}
+setupBtn("btnUp",["ArrowUp"]); setupBtn("btnDown",["ArrowDown"]); setupBtn("btnLeft",["ArrowLeft"]); setupBtn("btnRight",["ArrowRight"]);
+setupBtn("btnUpLeft",["ArrowUp","ArrowLeft"]); setupBtn("btnUpRight",["ArrowUp","ArrowRight"]);
+setupBtn("btnDownLeft",["ArrowDown","ArrowLeft"]); setupBtn("btnDownRight",["ArrowDown","ArrowRight"]);
+document.getElementById("startBtn").onclick = () => { started = true; document.getElementById("startBtn").style.display="none"; sndBgm.play(); };
+setInterval(()=>{ if(!started||over)return; t--; timeEl.textContent=t; if(t<=0)end("逃走成功！", true); },1000);
+function loop(){
+  ctx.clearRect(0,0,c.width,c.height);
+  if(started && !over){
+    let vx=0,vy=0;
+    if(k.ArrowUp)vy-=1; if(k.ArrowDown)vy+=1; if(k.ArrowLeft)vx-=1; if(k.ArrowRight)vx+=1;
+    if(vx||vy){ let d=Math.hypot(vx,vy); p.x+=vx/d*p.s; p.y+=vy/d*p.s; }
+    p.x=Math.max(p.r,Math.min(c.width-p.r,p.x)); p.y=Math.max(p.r,Math.min(c.height-p.r,p.y));
+    let dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy);
+    e.x+=dx/d*e.s; e.y+=dy/d*e.s;
+    if(d<p.r+e.r)end("捕まった！", false);
+  }
+  ctx.drawImage(imgRan, p.x-p.r, p.y-p.r, p.r*2, p.r*2);
+  ctx.drawImage(imgOni, e.x-e.r, e.y-e.r, e.r*2, e.r*2);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
