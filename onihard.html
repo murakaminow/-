@@ -54,10 +54,9 @@ let t=30, started=false, over=false, isPaused=false;
 let p={x:400, y:500, r:20, s:11}; 
 let e={x:400, y:150, r:70, s:3.0, targetS: 6.5}; 
 let miku={x:0, y:0, r:30, active:false};
-let k={}, stop=0, kakuseiDone=false;
-let itemTimers = [];
+let k={}, stop=0, kakuseiDone=false, itemTimers = [];
 
-// 音源定義
+// 音源設定
 const sndBgm1 = new Audio('murakami2.mp3'); sndBgm1.loop = true;
 const sndBgm2 = new Audio('murakami1.mp3'); sndBgm2.loop = true;
 const sndMiku = new Audio('miku.m4a');
@@ -65,17 +64,26 @@ const sndSaisyu = new Audio('saisyu.m4a');
 const sndMake = new Audio('make.m4a');
 const sndZannen = new Audio('zannen.m4a');
 
-// iPhone用オーディオ解除関数
+// 【重要】iPhone対策：全音源をプリロードし、一度強制再生して許可を得る
+const allAudios = [sndBgm1, sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen];
+allAudios.forEach(a => { a.load(); });
+
 function unlockAudio() {
-    const audios = [sndBgm1, sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen];
-    audios.forEach(a => {
-        a.play().then(() => {
-            a.pause();
-            a.currentTime = 0;
-        }).catch(err => console.log("Audio unlock error:", err));
+    allAudios.forEach(a => {
+        a.play(); // 再生開始
+        a.pause(); // 即座に停止
+        a.currentTime = 0; // 頭に戻す
     });
 }
 
+document.getElementById("startBtn").onclick = function() { 
+    unlockAudio(); // スタートボタンが押された瞬間に実行
+    started = true; 
+    this.style.display="none"; 
+    sndBgm1.play().catch(err => console.log("BGM play failed", err)); 
+};
+
+// 画像設定
 const imgNormal=new Image(); imgNormal.src='onihard.PNG';
 const imgFire=new Image(); imgFire.src='hardfire.PNG';
 const imgMiku=new Image(); imgMiku.src='miku.PNG';
@@ -102,13 +110,6 @@ setupBtn("btnUp",["ArrowUp"]); setupBtn("btnDown",["ArrowDown"]); setupBtn("btnL
 setupBtn("btnUpLeft",["ArrowUp","ArrowLeft"]); setupBtn("btnUpRight",["ArrowUp","ArrowRight"]);
 setupBtn("btnDownLeft",["ArrowDown","ArrowLeft"]); setupBtn("btnDownRight",["ArrowDown","ArrowRight"]);
 
-document.getElementById("startBtn").onclick = () => { 
-    unlockAudio(); // iPhone対策
-    started = true; 
-    document.getElementById("startBtn").style.display="none"; 
-    sndBgm1.play(); 
-};
-
 setInterval(()=>{
   if(!started || over || isPaused) return; 
   t--;
@@ -121,12 +122,15 @@ function triggerKakusei(){
   isPaused = true; 
   kakuseiDone = true;
   sndBgm1.pause();
+  
+  // iPhoneでも確実に鳴らすためのcurrentTime操作
+  sndSaisyu.currentTime = 0;
   sndSaisyu.play(); 
 
   const ev = document.getElementById("event-layer");
   const evImg = document.getElementById("event-img");
-  const evName = document.querySelector("#event-layer #event-name");
-  const evMsg = document.querySelector("#event-layer #event-msg");
+  const evName = document.querySelector("#event-name");
+  const evMsg = document.querySelector("#event-msg");
   
   ev.style.display = "flex";
   evImg.src = "onihard.PNG";
