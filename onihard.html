@@ -24,17 +24,14 @@ canvas{border:2px solid black;background:white;width: 95vw; height: 55vh; touch-
 <div id="game-container">
   <div style="font-size:18px; margin: 5px;">
     残り時間: <span id="time">30</span>秒 
-    <span style="font-size:12px; color:#555; margin-left:10px;">[ミクに触るといいことあるよ]</span>
+    <span style="font-size:12px; color:#555; margin-left:10px;">ミクに触るといいことあるよ</span>
   </div>
-  
   <canvas id="c"></canvas>
-  
   <div id="event-layer">
     <img id="event-img" src="onihard.PNG">
     <div id="event-name"></div>
     <div id="event-msg"></div>
   </div>
-
   <div id="overlay">
     <h1 id="res"></h1>
     <button class="menu-btn" onclick="location.reload()">もう一度</button>
@@ -60,12 +57,24 @@ let miku={x:0, y:0, r:30, active:false};
 let k={}, stop=0, kakuseiDone=false;
 let itemTimers = [];
 
+// 音源定義
 const sndBgm1 = new Audio('murakami2.mp3'); sndBgm1.loop = true;
 const sndBgm2 = new Audio('murakami1.mp3'); sndBgm2.loop = true;
 const sndMiku = new Audio('miku.m4a');
 const sndSaisyu = new Audio('saisyu.m4a');
 const sndMake = new Audio('make.m4a');
 const sndZannen = new Audio('zannen.m4a');
+
+// iPhone用オーディオ解除関数
+function unlockAudio() {
+    const audios = [sndBgm1, sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen];
+    audios.forEach(a => {
+        a.play().then(() => {
+            a.pause();
+            a.currentTime = 0;
+        }).catch(err => console.log("Audio unlock error:", err));
+    });
+}
 
 const imgNormal=new Image(); imgNormal.src='onihard.PNG';
 const imgFire=new Image(); imgFire.src='hardfire.PNG';
@@ -93,7 +102,12 @@ setupBtn("btnUp",["ArrowUp"]); setupBtn("btnDown",["ArrowDown"]); setupBtn("btnL
 setupBtn("btnUpLeft",["ArrowUp","ArrowLeft"]); setupBtn("btnUpRight",["ArrowUp","ArrowRight"]);
 setupBtn("btnDownLeft",["ArrowDown","ArrowLeft"]); setupBtn("btnDownRight",["ArrowDown","ArrowRight"]);
 
-document.getElementById("startBtn").onclick = () => { started = true; document.getElementById("startBtn").style.display="none"; sndBgm1.play(); };
+document.getElementById("startBtn").onclick = () => { 
+    unlockAudio(); // iPhone対策
+    started = true; 
+    document.getElementById("startBtn").style.display="none"; 
+    sndBgm1.play(); 
+};
 
 setInterval(()=>{
   if(!started || over || isPaused) return; 
@@ -138,41 +152,27 @@ function triggerKakusei(){
 
 function loop(){
   ctx.clearRect(0,0,c.width,c.height);
-  
   if(started && !over && !isPaused){
-    if(kakuseiDone && e.s < e.targetS){
-      e.s += 0.004; 
-    }
-
+    if(kakuseiDone && e.s < e.targetS) e.s += 0.004; 
     let vx=0, vy=0;
     if(k.ArrowUp)vy-=1; if(k.ArrowDown)vy+=1; if(k.ArrowLeft)vx-=1; if(k.ArrowRight)vx+=1;
     if(vx||vy){ let d=Math.hypot(vx,vy); p.x+=vx/d*p.s; p.y+=vy/d*p.s; }
     p.x=Math.max(p.r,Math.min(c.width-p.r,p.x)); p.y=Math.max(p.r,Math.min(c.height-p.r,p.y));
-    
     let dx=p.x-e.x, dy=p.y-e.y, dist=Math.hypot(dx,dy);
     if(stop>0){ stop--; } else { e.x+=dx/dist*e.s; e.y+=dy/dist*e.s; }
-    
     if(dist < p.r+e.r) end("捕まった！", false);
     if(miku.active && Math.hypot(p.x-miku.x, p.y-miku.y) < p.r+miku.r){ 
-        miku.active = false; stop = 180; 
-        sndMiku.play(); 
+        miku.active = false; stop = 180; sndMiku.play(); 
     }
-
     if(kakuseiDone && itemTimers.includes(t) && !miku.active){
-      itemTimers = itemTimers.filter(time => time !== t);
-      miku.x = Math.random() * 700 + 50;
-      miku.y = Math.random() * 500 + 50;
-      miku.active = true;
+      itemTimers = itemTimers.filter(v => v !== t);
+      miku.x = Math.random() * 700 + 50; miku.y = Math.random() * 500 + 50; miku.active = true;
     }
   }
-
   ctx.drawImage(imgRan, p.x-p.r, p.y-p.r, p.r*2, p.r*2);
-
   let oniImg = (stop > 0) ? imgIce : (kakuseiDone ? imgFire : imgNormal);
   ctx.drawImage(oniImg, e.x-e.r, e.y-e.r, e.r*2, e.r*2);
-
   if(miku.active) ctx.drawImage(imgMiku, miku.x-miku.r, miku.y-miku.r, miku.r*2, miku.r*2);
-
   requestAnimationFrame(loop);
 }
 loop();
