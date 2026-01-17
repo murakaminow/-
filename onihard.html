@@ -64,26 +64,25 @@ const sndSaisyu = new Audio('saisyu.m4a');
 const sndMake = new Audio('make.m4a');
 const sndZannen = new Audio('zannen.m4a');
 
-// 【重要】iPhone対策：全音源をプリロードし、一度強制再生して許可を得る
 const allAudios = [sndBgm1, sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen];
-allAudios.forEach(a => { a.load(); });
 
+// iPhone用：全音源の再生権限を確保
 function unlockAudio() {
     allAudios.forEach(a => {
-        a.play(); // 再生開始
-        a.pause(); // 即座に停止
-        a.currentTime = 0; // 頭に戻す
+        a.play().then(() => {
+            a.pause();
+            a.currentTime = 0;
+        }).catch(e => console.log("Unlock failed", e));
     });
 }
 
 document.getElementById("startBtn").onclick = function() { 
-    unlockAudio(); // スタートボタンが押された瞬間に実行
+    unlockAudio();
     started = true; 
     this.style.display="none"; 
-    sndBgm1.play().catch(err => console.log("BGM play failed", err)); 
+    sndBgm1.play(); 
 };
 
-// 画像設定
 const imgNormal=new Image(); imgNormal.src='onihard.PNG';
 const imgFire=new Image(); imgFire.src='hardfire.PNG';
 const imgMiku=new Image(); imgMiku.src='miku.PNG';
@@ -92,7 +91,7 @@ const imgRan=new Image(); imgRan.src='ran.PNG';
 
 function end(m, win){
   over=true; started=false; isPaused=false;
-  sndBgm1.pause(); sndBgm2.pause();
+  sndBgm1.pause(); sndBgm2.pause(); sndSaisyu.pause();
   document.getElementById("res").textContent=m;
   document.getElementById("overlay").style.display="flex";
   if(win) { sndMake.play(); } else { sndZannen.play(); }
@@ -114,6 +113,17 @@ setInterval(()=>{
   if(!started || over || isPaused) return; 
   t--;
   timeEl.textContent = t;
+  
+  // iPhone対策：覚醒の1秒前（残り21秒）に効果音をプリロード（無音再生）しておく
+  if(t === 21) {
+      sndSaisyu.volume = 0;
+      sndSaisyu.play().then(() => {
+          sndSaisyu.pause();
+          sndSaisyu.currentTime = 0;
+          sndSaisyu.volume = 1.0;
+      });
+  }
+
   if(t===20 && !kakuseiDone) triggerKakusei();
   if(t<=0) end("逃走成功！", true);
 }, 1000);
@@ -123,9 +133,15 @@ function triggerKakusei(){
   kakuseiDone = true;
   sndBgm1.pause();
   
-  // iPhoneでも確実に鳴らすためのcurrentTime操作
-  sndSaisyu.currentTime = 0;
-  sndSaisyu.play(); 
+  // 確実に再生
+  setTimeout(() => {
+      sndSaisyu.currentTime = 0;
+      sndSaisyu.play().catch(e => {
+          // 万が一失敗した場合の予備：再度playを試みる
+          console.log("Retry playing saisyu...");
+          sndSaisyu.play();
+      });
+  }, 10);
 
   const ev = document.getElementById("event-layer");
   const evImg = document.getElementById("event-img");
