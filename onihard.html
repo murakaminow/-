@@ -66,21 +66,24 @@ const sndZannen = new Audio('zannen.m4a');
 
 const allAudios = [sndBgm1, sndBgm2, sndMiku, sndSaisyu, sndMake, sndZannen];
 
-// iPhone用：全音源を確実に使用可能にする
-function unlockAudio() {
-    allAudios.forEach(a => {
-        a.play().then(() => {
-            a.pause();
-            a.currentTime = 0;
-        }).catch(err => console.log("Unlock Error", err));
-    });
-}
-
+// スタートボタンクリック時に全てのオーディオを解放
 document.getElementById("startBtn").onclick = function() { 
-    unlockAudio();
+    // 全ての音を一瞬再生して停止（iPhone制限解除）
+    allAudios.forEach(a => {
+        const p = a.play();
+        if (p !== undefined) {
+            p.then(() => { a.pause(); a.currentTime = 0; })
+             .catch(err => console.log("Unlock Error"));
+        }
+    });
+
     started = true; 
     this.style.display="none"; 
-    sndBgm1.play(); 
+    // 明示的にBGM1を開始
+    setTimeout(() => {
+        sndBgm1.currentTime = 0;
+        sndBgm1.play().catch(e => console.log("BGM1 failed"));
+    }, 50);
 };
 
 const imgNormal=new Image(); imgNormal.src='onihard.PNG';
@@ -91,7 +94,7 @@ const imgRan=new Image(); imgRan.src='ran.PNG';
 
 function end(m, win){
   over=true; started=false; isPaused=false;
-  allAudios.forEach(a => { a.pause(); a.currentTime = 0; }); // すべての音を完全停止
+  allAudios.forEach(a => { a.pause(); a.currentTime = 0; });
   document.getElementById("res").textContent=m;
   document.getElementById("overlay").style.display="flex";
   if(win) { sndMake.play(); } else { sndZannen.play(); }
@@ -113,11 +116,11 @@ setInterval(()=>{
   if(!started || over || isPaused) return; 
   t--;
   timeEl.textContent = t;
-  
-  // iPhone対策：22秒の時点で覚醒用の音源を再度アクティブ化しておく
+
+  // 22秒時点でsaisyuとBGM2を再度iPhoneに認識させる
   if(t === 22) {
-      sndSaisyu.play(); sndSaisyu.pause(); sndSaisyu.currentTime = 0;
-      sndBgm2.play(); sndBgm2.pause(); sndBgm2.currentTime = 0;
+    sndSaisyu.play().then(()=>sndSaisyu.pause());
+    sndBgm2.play().then(()=>sndBgm2.pause());
   }
 
   if(t===20 && !kakuseiDone) triggerKakusei();
@@ -128,14 +131,15 @@ function triggerKakusei(){
   isPaused = true; 
   kakuseiDone = true;
 
-  // 重要：iPhoneのために一旦BGMを完全に止めてリセットする
+  // BGM1を止める
   sndBgm1.pause();
   sndBgm1.currentTime = 0;
-  
-  // 0.1秒待ってから効果音を鳴らす（連続再生の衝突回避）
+
+  // 0.2秒後にsaisyu.m4aを再生（BGM停止との競合回避）
   setTimeout(() => {
-      sndSaisyu.play();
-  }, 100);
+    sndSaisyu.currentTime = 0;
+    sndSaisyu.play().catch(e => console.log("saisyu play failed"));
+  }, 200);
 
   const ev = document.getElementById("event-layer");
   const evImg = document.getElementById("event-img");
@@ -155,14 +159,13 @@ function triggerKakusei(){
   itemTimers = [];
   for(let i=0; i<3; i++){ itemTimers.push(Math.floor(Math.random() * 19) + 1); }
 
-  // 覚醒演出が終わるタイミングでBGM2を再生
   setTimeout(()=>{ 
     ev.style.display = "none"; 
     isPaused = false; 
     e.s = 4.8; 
     e.r = 95;
-    sndSaisyu.pause(); // 効果音を念のため止める
-    sndBgm2.play(); 
+    sndSaisyu.pause(); 
+    sndBgm2.play().catch(e => console.log("BGM2 failed")); 
   }, 2800);
 }
 
